@@ -1,0 +1,15 @@
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+calc_qsmi
+session.json
+*.env
+build
+.idea
+diff.txt
+.DS_Store
