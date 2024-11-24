@@ -39,6 +39,8 @@ func mainMenu(app *tview.Application) {
 
 	form.AddButton("Reset", func() {
 		reset(app)
+	}).AddButton("Setting", func() {
+		setting(app)
 	}).AddButton("Quit", func() {
 		app.Stop()
 	})
