@@ -62,3 +62,58 @@ func GetFavorites(section string) []string {
 
 	return symbols
 }
+
+func InsertIfNotExistsSetting(key, value string) {
+	var setting Setting
+	result := DB.Where(&Setting{Key: key}).First(&setting)
+
+	if result != nil && result.Error != nil {
+		DB.Create(&Setting{
+			Key:   key,
+			Value: value,
+		})
+	}
+}
+
+func UpsertSetting(key, value string) {
+	var setting Setting
+
+	result := DB.Where(&Setting{Key: key}).First(&setting)
+
+	if result != nil && result.Error != nil {
+		DB.Create(&Setting{
+			Key:   key,
+			Value: value,
+		})
+	} else {
+		setting.Value = value
+		DB.Save(&setting)
+	}
+}
+
+func GetSetting(key string) string {
+	var setting Setting
+	result := DB.Where(&Setting{Key: key}).First(&setting)
+
+	if result != nil && result.Error != nil {
+		return ""
+	}
+
+	return setting.Value
+}
+
+func GetALlSettings() map[string]string {
+	var settings []Setting
+	result := DB.Find(&settings).Order("id ASC")
+
+	if result != nil && result.Error != nil {
+		return map[string]string{}
+	}
+
+	var allSettings = make(map[string]string)
+	for _, setting := range settings {
+		allSettings[setting.Key] = setting.Value
+	}
+
+	return allSettings
+}

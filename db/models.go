@@ -18,3 +18,9 @@ type Favorite struct {
 	Symbol  string
 	Count   int
 }
+
+type Setting struct {
+	*gorm.Model
+	Key   string
+	Value string
+}
