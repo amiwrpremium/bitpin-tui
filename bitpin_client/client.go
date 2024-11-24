@@ -10,7 +10,7 @@ import (
 	"net/http"
 )
 
-const (
+var (
 	BaseUrl = "https://api.bitpin.market"
 	Version = "v1"
 )
@@ -28,6 +28,10 @@ type Client struct {
 }
 
 func NewClient(opts ClientOptions) (*Client, error) {
+	if opts.BaseUrl != "" {
+		BaseUrl = opts.BaseUrl
+	}
+
 	client := &Client{
 		AutoRefresh: opts.AutoRefresh,
 	}

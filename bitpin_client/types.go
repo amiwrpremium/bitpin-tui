@@ -9,6 +9,8 @@ import (
 type ClientOptions struct {
 	HttpClient *http.Client
 
+	BaseUrl string
+
 	AccessToken  string
 	RefreshToken string
 
