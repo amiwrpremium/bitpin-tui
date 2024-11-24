@@ -7,16 +7,22 @@ import (
 func mainMenu(app *tview.Application) {
 	form := tview.NewForm()
 
-	form.AddButton("Get Order Book", func() {
-		orderBook(app)
-	}).AddButton("Get Ticker", func() {
+	form.AddButton("Get Ticker", func() {
 		tickers(app)
 	}).AddButton("Get Recent Trades", func() {
 		recentTrades(app)
 	})
 
+	if user == nil {
+		form.AddButton("Get Order Book", func() {
+			orderBook(app)
+		})
+	}
+
 	if user != nil {
-		form.AddButton("Get Balances", func() {
+		form.AddButton("Get Order Book", func() {
+			orderBookV2(app)
+		}).AddButton("Get Balances", func() {
 			balances(app)
 		}).AddButton("Get Open Orders", func() {
 			openOrders(app)
