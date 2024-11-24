@@ -13,3 +13,7 @@ build
 .idea
 diff.txt
 .DS_Store
+*.db
+*.log
+*.sql
+*.sqlite

@@ -136,6 +136,20 @@ The project includes a release script (`scripts/release.sh`) that:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## Notice
+
+This project is an unofficial, independent terminal interface for the Bitpin exchange. It is:
+- Not affiliated with, endorsed by, or connected to Bitpin in any way
+- Provided "as-is" without any warranty or guarantee of reliability
+- A community project created for educational and convenience purposes
+- Not responsible for any trading losses or technical issues that may occur
+
+Users should:
+- Use this software at their own risk
+- Always verify critical information through official channels
+- Keep their API credentials secure and never share them
+- Be aware that cryptocurrency trading carries inherent risks
+
 ## Author
 
 AMiWR ([@amiwrpremium](https://github.com/amiwrpremium))
