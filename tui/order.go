@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"log"
 	"strconv"
 	"time"
 )
@@ -215,14 +214,17 @@ func pussyOut(app *tview.Application) {
 	confirmModal(app, "Are you sure?", doPussyOut, mainMenu)
 }
 
-func doPussyOut(app *tview.Application) {
-	cancelingChannelText := newPrimitive(app, "Canceling Order", tcell.ColorWhite)
-	cancelResultChannelText := newPrimitive(app, "Cancel Result", tcell.ColorWhite)
-	openOrdersText := newPrimitive(app, "Open Orders", tcell.ColorWhite)
+func prependLogMessage(tv *tview.TextView, message string) {
+	// Use a mutex if multiple goroutines access this to prevent race conditions
+	currentText := tv.GetText(false)
+	newText := message + "\n" + currentText
+	tv.SetText(newText)
+}
 
-	cancelingChannelLogger := log.New(cancelingChannelText, "", 0)
-	cancelResultChannelLogger := log.New(cancelResultChannelText, "", 0)
-	openOrdersLogger := log.New(openOrdersText, "", 0)
+func doPussyOut(app *tview.Application) {
+	cancelingChannelText := newPrimitive(app, "", tcell.ColorWhite)
+	cancelResultChannelText := newPrimitive(app, "", tcell.ColorWhite)
+	openOrdersText := newPrimitive(app, "", tcell.ColorWhite)
 
 	grid := tview.NewGrid().
 		SetRows(0, 0).
@@ -233,51 +235,60 @@ func doPussyOut(app *tview.Application) {
 	grid.AddItem(cancelingChannelText, 0, 1, 1, 1, 0, 0, false)
 	grid.AddItem(cancelResultChannelText, 0, 2, 1, 1, 0, 0, false)
 
-	// create a cancel channel
-	cancelChannel := make(chan int)
+	// Number of workers
+	workerCount := 5
 
-	// create a go routine that listens to the cancel channel and cancels the orders concurrently
-	go func() {
-		for {
-			select {
-			case orderId := <-cancelChannel:
-				go func(orderId int) { // Create a goroutine for each cancellation
-					//_, _ = fmt.Fprintf(cancelingChannelText, "canceling order: %d\n", orderId)
-					cancelingChannelLogger.Printf("canceling order: %d\n", orderId)
+	// Buffered channel to avoid blocking
+	cancelChannel := make(chan int, 100)
+
+	// Create multiple goroutines (workers) that listen to the cancel channel and cancel orders
+	for i := 0; i < workerCount; i++ {
+		go func(workerID int) {
+			for {
+				select {
+				case orderId := <-cancelChannel:
+					message := fmt.Sprintf("Worker %d: Canceling order: %d", workerID, orderId)
+					prependLogMessage(cancelingChannelText, message)
+
 					err := client.CancelOrder(orderId)
 					if err != nil {
-						//_, _ = fmt.Fprintf(cancelResultChannelText, "error canceling order: %d: %v\n", orderId, err)
-						cancelResultChannelLogger.Printf("error canceling order: %d: %v\n", orderId, err)
+						errorMessage := fmt.Sprintf("Worker %d: Error canceling order: %d: %v", workerID, orderId, err)
+						prependLogMessage(cancelResultChannelText, errorMessage)
+					} else {
+						successMessage := fmt.Sprintf("Worker %d: Successfully canceled order: %d", workerID, orderId)
+						prependLogMessage(cancelResultChannelText, successMessage)
 					}
-
-				}(orderId)
+				}
 			}
-		}
-	}()
+		}(i)
+	}
 
-	// create a go routine that retrieves open orders in a loop and sends them to the cancel channel
-	go func() {
-		for {
-			orders, err := client.GetOpenOrders(bpclient.GetOrdersParams{})
-			if err != nil {
-				//_, _ = fmt.Fprintf(openOrdersText, "error fetching open orders: %v\n", err)
-				openOrdersLogger.Printf("error fetching open orders: %v\n", err)
-				continue
+	// Create multiple goroutines (workers) to retrieve open orders and send them to the cancel channel
+	for i := 0; i < workerCount; i++ {
+		go func(workerID int) {
+			for {
+				orders, err := client.GetOpenOrders(bpclient.GetOrdersParams{State: "active"})
+				if err != nil {
+					errorMessage := fmt.Sprintf("Worker %d: Error fetching open orders: %v", workerID, err)
+					prependLogMessage(openOrdersText, errorMessage)
+					time.Sleep(1 * time.Second) // Avoid tight loop on error
+					continue
+				}
+
+				message := fmt.Sprintf("Worker %d: %d open orders fetched", workerID, len(orders))
+				prependLogMessage(openOrdersText, message)
+
+				for _, order := range orders {
+					cancelChannel <- order.Id
+				}
 			}
-
-			//_, _ = fmt.Fprintf(openOrdersText, "%d open orders fetched\n", len(orders))
-			openOrdersLogger.Printf("%d open orders fetched\n", len(orders))
-
-			for _, order := range orders {
-				cancelChannel <- order.Id
-			}
-		}
-	}()
+		}(i)
+	}
 
 	if err := app.SetRoot(grid, true).SetFocus(grid).Run(); err != nil {
 		panic(err)
 	}
 
-	// keep the main function running
+	// Keep the main function running
 	select {}
 }
