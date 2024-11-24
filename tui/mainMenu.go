@@ -32,6 +32,8 @@ func mainMenu(app *tview.Application) {
 			cancelOrder(app)
 		}).AddButton("Pussy Out", func() {
 			pussyOut(app)
+		}).AddButton("Info", func() {
+			info(app)
 		}).AddButton("Refresh", func() {
 			firstLogin()
 		}).AddButton("Logout", func() {
