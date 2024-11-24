@@ -227,8 +227,8 @@ func doPussyOut(app *tview.Application) {
 	openOrdersText := newPrimitive(app, "", tcell.ColorWhite)
 
 	grid := tview.NewGrid().
-		SetRows(0, 0).
-		SetColumns(0, 0).
+		SetRows(-1).         // Changed from (0, 0) to (-1) to use full height
+		SetColumns(0, 0, 0). // Changed to include three columns
 		SetBorders(true)
 
 	grid.AddItem(openOrdersText, 0, 0, 1, 1, 0, 0, false)
