@@ -26,7 +26,7 @@ func balances(app *tview.Application) {
 			table.SetCell(0, 2, tview.NewTableCell("Frozen").SetTextColor(tcell.ColorYellow))
 
 			for {
-				blnc, err := client.GetBalances(bpclient.GetBalancesParams{Limit: 200})
+				blnc, err := client.GetBalances(bpclient.GetBalancesParams{Limit: 1000})
 				if err != nil {
 					errorModal(app, fmt.Sprintf("Failed to get balances: %v", err), balances)
 					return
@@ -43,7 +43,7 @@ func balances(app *tview.Application) {
 			}
 
 		} else {
-			blnc, err := client.GetBalances(bpclient.GetBalancesParams{Limit: 200})
+			blnc, err := client.GetBalances(bpclient.GetBalancesParams{Limit: 1000})
 			if err != nil {
 				errorModal(app, fmt.Sprintf("Faileds to get balances: %v", err), balances)
 				return
