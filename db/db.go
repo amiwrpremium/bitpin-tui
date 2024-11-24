@@ -11,7 +11,7 @@ var DB *gorm.DB
 
 func initiateSettings() {
 	InsertIfNotExistsSetting("base_url", "https://api.bitpin.market")
-	InsertIfNotExistsSetting("version", utils.GetVersion())
+	UpsertSetting("version", utils.GetVersion())
 	InsertIfNotExistsSetting("pussy_out_workers", "10")
 	InsertIfNotExistsSetting("pussy_out_buffer_size", "100")
 }
