@@ -2,6 +2,7 @@ package tui
 
 import (
 	bpclient "bitpin-tui/bitpin_client"
+	"bitpin-tui/db"
 	"bitpin-tui/utils"
 	"fmt"
 	"github.com/gdamore/tcell/v2"
@@ -236,10 +237,19 @@ func doPussyOut(app *tview.Application) {
 	grid.AddItem(cancelResultChannelText, 0, 2, 1, 1, 0, 0, false)
 
 	// Number of workers
-	workerCount := 5
+	workerCount, err := strconv.Atoi(db.GetSetting("pussy_out_workers"))
+	if err != nil {
+		errorModal(app, fmt.Sprintf("Failed to get pussy out workers: %v", err), mainMenu)
+		return
+	}
 
 	// Buffered channel to avoid blocking
-	cancelChannel := make(chan int, 100)
+	bufferSize, err := strconv.Atoi(db.GetSetting("pussy_out_buffer_size"))
+	if err != nil {
+		errorModal(app, fmt.Sprintf("Failed to get pussy out buffer size: %v", err), mainMenu)
+		return
+	}
+	cancelChannel := make(chan int, bufferSize)
 
 	// Create multiple goroutines (workers) that listen to the cancel channel and cancel orders
 	for i := 0; i < workerCount; i++ {
