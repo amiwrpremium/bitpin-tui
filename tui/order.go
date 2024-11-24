@@ -11,10 +11,64 @@ import (
 	"time"
 )
 
+func createOrderStatusTable(app *tview.Application, orders []*bpclient.OrderStatus) *tview.Table {
+	table := tview.NewTable().
+		SetBorders(true)
+
+	table.SetCell(0, 0, tview.NewTableCell("Id").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
+	table.SetCell(0, 1, tview.NewTableCell("Symbol").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
+	table.SetCell(0, 2, tview.NewTableCell("Type").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
+	table.SetCell(0, 3, tview.NewTableCell("Side").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
+	table.SetCell(0, 4, tview.NewTableCell("Base Amount").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
+	table.SetCell(0, 5, tview.NewTableCell("Quote Amount").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
+	table.SetCell(0, 6, tview.NewTableCell("Price").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
+	table.SetCell(0, 7, tview.NewTableCell("Identifier").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
+	table.SetCell(0, 8, tview.NewTableCell("State").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
+	table.SetCell(0, 9, tview.NewTableCell("Created At").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
+	table.SetCell(0, 10, tview.NewTableCell("Relative Time").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
+	table.SetCell(0, 11, tview.NewTableCell("Dealed Base Amount").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
+	table.SetCell(0, 12, tview.NewTableCell("Dealed Quote Amount").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
+	table.SetCell(0, 13, tview.NewTableCell("Commission").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
+
+	for i, order := range orders {
+		color := tcell.ColorWhite
+		if order.Side == "buy" {
+			order.Side = "BUY"
+			color = tcell.ColorGreen
+		} else {
+			order.Side = "SELL"
+			color = tcell.ColorRed
+		}
+
+		if order.Identifier == "" {
+			order.Identifier = "-"
+		}
+
+		table.SetCell(i+1, 0, tview.NewTableCell(fmt.Sprintf("%d", order.Id)).SetAlign(tview.AlignCenter))
+		table.SetCell(i+1, 1, tview.NewTableCell(order.Symbol).SetAlign(tview.AlignCenter))
+		table.SetCell(i+1, 2, tview.NewTableCell(order.Type).SetAlign(tview.AlignCenter))
+		table.SetCell(i+1, 3, tview.NewTableCell(order.Side).SetTextColor(color).SetAlign(tview.AlignCenter))
+		table.SetCell(i+1, 4, tview.NewTableCell(utils.FormatWithCommas(order.BaseAmount)).SetAlign(tview.AlignCenter))
+		table.SetCell(i+1, 5, tview.NewTableCell(utils.FormatWithCommas(order.QuoteAmount)).SetAlign(tview.AlignCenter))
+		table.SetCell(i+1, 6, tview.NewTableCell(utils.FormatWithCommas(order.Price)).SetAlign(tview.AlignCenter))
+		table.SetCell(i+1, 7, tview.NewTableCell(order.Identifier).SetAlign(tview.AlignCenter))
+		table.SetCell(i+1, 8, tview.NewTableCell(order.State).SetAlign(tview.AlignCenter))
+		table.SetCell(i+1, 9, tview.NewTableCell(order.CreatedAt.String()).SetAlign(tview.AlignCenter))
+		table.SetCell(i+1, 10, tview.NewTableCell(utils.FormatWithCommas(strconv.FormatInt(time.Since(order.CreatedAt).Milliseconds(), 10))+"ms ago").SetAlign(tview.AlignCenter))
+		table.SetCell(i+1, 11, tview.NewTableCell(order.DealedBaseAmount).SetAlign(tview.AlignCenter))
+		table.SetCell(i+1, 12, tview.NewTableCell(order.DealedQuoteAmount).SetAlign(tview.AlignCenter))
+		table.SetCell(i+1, 13, tview.NewTableCell(order.Commission).SetAlign(tview.AlignCenter))
+	}
+
+	table.Select(0, 0).SetFixed(1, 1)
+
+	return table
+
+}
+
 func openOrders(app *tview.Application) {
 	form := tview.NewForm().
 		AddInputField("Symbol (optional)", "", 0, nil, nil).
-		//AddInputField("Side (optional)", "", 0, nil, nil)
 		AddDropDown("Side (optional)", []string{"", "buy", "sell"}, 0, nil)
 
 	form.AddButton("Submit", func() {
@@ -28,60 +82,12 @@ func openOrders(app *tview.Application) {
 			return
 		}
 
-		table := tview.NewTable().
-			SetBorders(true)
-
 		if len(orders) == 0 {
 			errorModal(app, "No open orders found", openOrders)
 			return
 		}
 
-		table.SetCell(0, 0, tview.NewTableCell("Id").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
-		table.SetCell(0, 1, tview.NewTableCell("Symbol").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
-		table.SetCell(0, 2, tview.NewTableCell("Type").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
-		table.SetCell(0, 3, tview.NewTableCell("Side").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
-		table.SetCell(0, 4, tview.NewTableCell("Base Amount").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
-		table.SetCell(0, 5, tview.NewTableCell("Quote Amount").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
-		table.SetCell(0, 6, tview.NewTableCell("Price").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
-		table.SetCell(0, 7, tview.NewTableCell("Identifier").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
-		table.SetCell(0, 8, tview.NewTableCell("State").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
-		table.SetCell(0, 9, tview.NewTableCell("Created At").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
-		table.SetCell(0, 10, tview.NewTableCell("Relative Time").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
-		table.SetCell(0, 11, tview.NewTableCell("Dealed Base Amount").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
-		table.SetCell(0, 12, tview.NewTableCell("Dealed Quote Amount").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
-		table.SetCell(0, 13, tview.NewTableCell("Commission").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
-
-		for i, order := range orders {
-			color := tcell.ColorWhite
-			if order.Side == "buy" {
-				order.Side = "BUY"
-				color = tcell.ColorGreen
-			} else {
-				order.Side = "SELL"
-				color = tcell.ColorRed
-			}
-
-			if order.Identifier == "" {
-				order.Identifier = "-"
-			}
-
-			table.SetCell(i+1, 0, tview.NewTableCell(fmt.Sprintf("%d", order.Id)).SetAlign(tview.AlignCenter))
-			table.SetCell(i+1, 1, tview.NewTableCell(order.Symbol).SetAlign(tview.AlignCenter))
-			table.SetCell(i+1, 2, tview.NewTableCell(order.Type).SetAlign(tview.AlignCenter))
-			table.SetCell(i+1, 3, tview.NewTableCell(order.Side).SetTextColor(color).SetAlign(tview.AlignCenter))
-			table.SetCell(i+1, 4, tview.NewTableCell(utils.FormatWithCommas(order.BaseAmount)).SetAlign(tview.AlignCenter))
-			table.SetCell(i+1, 5, tview.NewTableCell(utils.FormatWithCommas(order.QuoteAmount)).SetAlign(tview.AlignCenter))
-			table.SetCell(i+1, 6, tview.NewTableCell(utils.FormatWithCommas(order.Price)).SetAlign(tview.AlignCenter))
-			table.SetCell(i+1, 7, tview.NewTableCell(order.Identifier).SetAlign(tview.AlignCenter))
-			table.SetCell(i+1, 8, tview.NewTableCell(order.State).SetAlign(tview.AlignCenter))
-			table.SetCell(i+1, 9, tview.NewTableCell(order.CreatedAt.String()).SetAlign(tview.AlignCenter))
-			table.SetCell(i+1, 10, tview.NewTableCell(utils.FormatWithCommas(strconv.FormatInt(time.Since(order.CreatedAt).Milliseconds(), 10))+"ms ago").SetAlign(tview.AlignCenter))
-			table.SetCell(i+1, 11, tview.NewTableCell(order.DealedBaseAmount).SetAlign(tview.AlignCenter))
-			table.SetCell(i+1, 12, tview.NewTableCell(order.DealedQuoteAmount).SetAlign(tview.AlignCenter))
-			table.SetCell(i+1, 13, tview.NewTableCell(order.Commission).SetAlign(tview.AlignCenter))
-		}
-
-		table.Select(0, 0).SetFixed(1, 1)
+		table := createOrderStatusTable(app, orders)
 		app.SetRoot(table, true)
 	})
 
