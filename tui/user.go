@@ -90,3 +90,39 @@ func balances(app *tview.Application) {
 
 	app.SetRoot(form, true)
 }
+
+func info(app *tview.Application) {
+	table := tview.NewTable().
+		SetBorders(true)
+
+	table.SetCell(0, 0, tview.NewTableCell("User Identifier").SetTextColor(tcell.ColorYellow))
+	table.SetCell(0, 1, tview.NewTableCell(user.UserIdentifier).SetTextColor(tcell.ColorGreen))
+	table.SetCell(1, 0, tview.NewTableCell("Phone").SetTextColor(tcell.ColorYellow))
+	table.SetCell(1, 1, tview.NewTableCell(user.Phone).SetTextColor(tcell.ColorGreen))
+	table.SetCell(2, 0, tview.NewTableCell("State").SetTextColor(tcell.ColorYellow))
+	table.SetCell(2, 1, tview.NewTableCell(user.State).SetTextColor(tcell.ColorGreen))
+	table.SetCell(3, 0, tview.NewTableCell("Is Phone Confirmed").SetTextColor(tcell.ColorYellow))
+	table.SetCell(3, 1, tview.NewTableCell(strconv.FormatBool(user.IsPhoneConfirmed)).SetTextColor(tcell.ColorGreen))
+	table.SetCell(4, 0, tview.NewTableCell("Is Email Confirmed").SetTextColor(tcell.ColorYellow))
+	table.SetCell(4, 1, tview.NewTableCell(strconv.FormatBool(user.IsEmailConfirmed)).SetTextColor(tcell.ColorGreen))
+	table.SetCell(5, 0, tview.NewTableCell("First Name").SetTextColor(tcell.ColorYellow))
+	table.SetCell(5, 1, tview.NewTableCell(user.FirstName).SetTextColor(tcell.ColorGreen))
+	table.SetCell(6, 0, tview.NewTableCell("Last Name").SetTextColor(tcell.ColorYellow))
+	table.SetCell(6, 1, tview.NewTableCell(user.LastName).SetTextColor(tcell.ColorGreen))
+	table.SetCell(7, 0, tview.NewTableCell("Full Name").SetTextColor(tcell.ColorYellow))
+	table.SetCell(7, 1, tview.NewTableCell(user.Fullname).SetTextColor(tcell.ColorGreen))
+	table.SetCell(8, 0, tview.NewTableCell("Birth Date Text").SetTextColor(tcell.ColorYellow))
+	table.SetCell(8, 1, tview.NewTableCell(user.BirthDateText).SetTextColor(tcell.ColorGreen))
+	table.SetCell(9, 0, tview.NewTableCell("Email").SetTextColor(tcell.ColorYellow))
+	table.SetCell(9, 1, tview.NewTableCell(user.Email).SetTextColor(tcell.ColorGreen))
+	table.SetCell(10, 0, tview.NewTableCell("Type").SetTextColor(tcell.ColorYellow))
+	table.SetCell(10, 1, tview.NewTableCell(user.Type).SetTextColor(tcell.ColorGreen))
+	table.SetCell(11, 0, tview.NewTableCell("Remaining Daily Withdraw").SetTextColor(tcell.ColorYellow))
+	table.SetCell(11, 1, tview.NewTableCell(utils.FormatWithCommas(strconv.FormatInt(user.RemainingDailyWithdraw, 10))).SetTextColor(tcell.ColorGreen))
+	table.SetCell(12, 0, tview.NewTableCell("Remaining Monthly Withdraw").SetTextColor(tcell.ColorYellow))
+	table.SetCell(12, 1, tview.NewTableCell(utils.FormatWithCommas(strconv.FormatInt(user.RemainingMonthlyWithdraw, 10))).SetTextColor(tcell.ColorGreen))
+	table.SetCell(13, 0, tview.NewTableCell("Tetherban").SetTextColor(tcell.ColorYellow))
+	table.SetCell(13, 1, tview.NewTableCell(strconv.FormatBool(user.Tetherban)).SetTextColor(tcell.ColorGreen))
+
+	app.SetRoot(table, true)
+}
