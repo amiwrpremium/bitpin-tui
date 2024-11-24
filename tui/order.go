@@ -179,7 +179,7 @@ func createOrder(app *tview.Application) {
 			BaseAmount: baseAmount,
 		}
 
-		_, err := client.CreateOrder(params)
+		order, err := client.CreateOrder(params)
 		if err != nil {
 			errorModal(app, fmt.Sprintf("Failed to create order: %v", err), createOrder)
 			return
@@ -189,7 +189,8 @@ func createOrder(app *tview.Application) {
 			SetText("Order created").
 			AddButtons([]string{"OK"}).
 			SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-				mainMenu(app)
+				table := createOrderStatusTable(app, []*bpclient.OrderStatus{order})
+				app.SetRoot(table, true)
 			})
 
 		app.SetRoot(modal, true).SetFocus(modal)
