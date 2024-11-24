@@ -47,7 +47,7 @@ func NewClient(opts ClientOptions) (*Client, error) {
 		return nil, fmt.Errorf("error handling auto refresh: %v", err)
 	}
 
-	if (opts.ApiKey != "" && opts.SecretKey != "") && (client.AccessToken == "" || client.RefreshToken == "") {
+	if opts.ApiKey != "" && opts.SecretKey != "" {
 		if _, err := client.Authenticate(opts.ApiKey, opts.SecretKey); err != nil {
 			return nil, fmt.Errorf("error authenticating: %v", err)
 		}
