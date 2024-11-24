@@ -16,6 +16,7 @@ func firstLogin() {
 		SecretKey:    session.SecretKey,
 		AccessToken:  session.AccessToken,
 		RefreshToken: session.RefreshToken,
+		BaseUrl:      db.GetSetting("base_url"),
 	})
 
 	if err != nil {
@@ -45,6 +46,7 @@ func doLogin(app *tview.Application) {
 			client, err := bpclient.NewClient(bpclient.ClientOptions{
 				ApiKey:    form.GetFormItemByLabel("API Key").(*tview.InputField).GetText(),
 				SecretKey: form.GetFormItemByLabel("API Secret").(*tview.InputField).GetText(),
+				BaseUrl:   db.GetSetting("base_url"),
 			})
 
 			if err != nil {
