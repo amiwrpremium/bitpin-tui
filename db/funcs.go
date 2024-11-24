@@ -32,8 +32,9 @@ func UpsertFavorite(section, symbol string) {
 
 	if result != nil && result.Error != nil {
 		DB.Create(&Favorite{
-			Symbol: symbol,
-			Count:  1,
+			Symbol:  symbol,
+			Section: section,
+			Count:   1,
 		})
 	} else {
 		favorite.Count++
