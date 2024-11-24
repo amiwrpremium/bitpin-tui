@@ -13,6 +13,15 @@ import (
 	"time"
 )
 
+func doWeHaveOrder(userOrders []*bpclient.OrderStatus, price string) bool {
+	for _, order := range userOrders {
+		if order.Price == price {
+			return true
+		}
+	}
+	return false
+}
+
 func orderBook(app *tview.Application) {
 	form := tview.NewForm()
 	favSymbols := db.GetFavorites("order_book")
@@ -126,6 +135,170 @@ func orderBook(app *tview.Application) {
 					continue
 				}
 				orderBookChannel <- orderBook
+
+				time.Sleep(time.Duration(interval) * time.Second)
+			}
+		}()
+
+		if err := app.SetRoot(grid, true).SetFocus(grid).Run(); err != nil {
+			panic(err)
+		}
+	})
+
+	form.
+		AddButton("Back", func() {
+			mainMenu(app)
+		})
+
+	form.
+		SetBorder(true).
+		SetTitle("Order Book").
+		SetTitleAlign(tview.AlignLeft).
+		SetRect(0, 0, 30, 10)
+
+	app.SetRoot(form, true)
+}
+
+func orderBookV2(app *tview.Application) {
+	form := tview.NewForm()
+	favSymbols := db.GetFavorites("order_book_v2")
+
+	if len(favSymbols) > 0 {
+		favSymbols = append(favSymbols, "Other")
+		form.AddDropDown("Favorite", favSymbols, 0, func(option string, optionIndex int) {
+			if option == "Other" {
+				//form.RemoveFormItem(0)
+				form.Clear(false)
+				form.AddInputField("Symbol", "", 0, nil, nil)
+				form.AddInputField("Depth", "20", 0, nil, nil)
+				form.AddInputField("Interval", "1", 0, nil, nil)
+				favSymbols = []string{}
+			}
+		})
+	} else {
+		form.AddInputField("Symbol", "", 0, nil, nil)
+	}
+
+	form.AddInputField("Depth", "20", 0, nil, nil)
+	form.AddInputField("Interval", "1", 0, nil, nil)
+
+	form.AddButton("Submit", func() {
+		symbol := ""
+		if len(favSymbols) == 0 {
+			symbol = form.GetFormItemByLabel("Symbol").(*tview.InputField).GetText()
+		} else {
+			_, symbol = form.GetFormItemByLabel("Favorite").(*tview.DropDown).GetCurrentOption()
+		}
+
+		if symbol == "" {
+			errorModal(app, "Symbol is required", orderBookV2)
+			return
+		}
+		if !utils.StringEndsWith(symbol, "_USDT") && !utils.StringEndsWith(symbol, "_IRT") {
+			errorModal(app, "Invalid symbol. Symbol must end with _USDT or _IRT", orderBookV2)
+			return
+		}
+
+		db.UpsertFavorite("order_book_v2", symbol)
+
+		depth, _ := strconv.Atoi(form.GetFormItemByLabel("Depth").(*tview.InputField).GetText())
+		interval, _ := strconv.Atoi(form.GetFormItemByLabel("Interval").(*tview.InputField).GetText())
+
+		// two text views for the order book (bids and asks)
+		bidsTextView := newPrimitive(app, "", tcell.ColorGreen)
+		asksTextView := newPrimitive(app, "", tcell.ColorRed)
+		lastUpdatedTextView := newPrimitive(app, "Last updated at: ", tcell.ColorOrange)
+
+		// two loggers for the order book (bids and asks)
+		bidsLogger := log.New(bidsTextView, "", 0)
+		asksLogger := log.New(asksTextView, "", 0)
+
+		// create a grid layout
+		grid := tview.NewGrid().
+			SetRows(1, 1, 1, 0, 1).
+			SetColumns(0, 0).
+			SetBorders(true).
+			AddItem(newPrimitive(app, symbol+" Order Book", tcell.ColorPurple), 0, 0, 1, 2, 0, 0, false).
+			AddItem(lastUpdatedTextView, 4, 0, 1, 2, 0, 0, false)
+
+		// add "ask" and "bid" as a first row in the grid
+		grid.AddItem(newPrimitive(app, "Asks", tcell.ColorRed), 1, 0, 1, 1, 0, 0, false)
+		grid.AddItem(newPrimitive(app, "Bids", tcell.ColorGreen), 1, 1, 1, 1, 0, 0, false)
+
+		grid.AddItem(newPrimitive(app, "For Me \t\t\t Price \t\t\t Amount", tcell.ColorWhite), 2, 0, 1, 1, 0, 0, false)
+		grid.AddItem(newPrimitive(app, "For Me \t\t\t Price \t\t\t Amount", tcell.ColorWhite), 2, 1, 1, 1, 0, 0, false)
+
+		grid.AddItem(asksTextView, 3, 0, 1, 1, 0, 0, false)
+		grid.AddItem(bidsTextView, 3, 1, 1, 1, 0, 0, false)
+
+		// create a channel for the order book
+		orderBookChannel := make(chan *bpclient.OrderBook)
+		userOrdersChannel := make(chan []*bpclient.OrderStatus)
+
+		lastUpdatedAt := time.Now()
+
+		// create a go routine that listens to the order book channel and updates the text views
+		go func() {
+			for {
+				orderBook := <-orderBookChannel
+				userOrders := <-userOrdersChannel
+
+				bidsTextView.Clear()
+				asksTextView.Clear()
+				lastUpdatedTextView.Clear()
+
+				minDepth := int(math.Min(math.Min(float64(len(orderBook.Bids)), float64(len(orderBook.Asks))), float64(depth)))
+
+				for i := 0; i < minDepth; i++ {
+					bid := orderBook.Bids[i]
+					ask := orderBook.Asks[i]
+
+					prefix := "\t\t\t"
+					if doWeHaveOrder(userOrders, bid[0]) {
+						prefix = "✔\t\t\t"
+					}
+
+					_, _ = bidsTextView.Write([]byte(fmt.Sprintf("%s%s \t\t\t %s\n", prefix, utils.FormatWithCommas(bid[0]), utils.FormatWithCommas(bid[1]))))
+
+					prefix = "\t\t\t"
+					if doWeHaveOrder(userOrders, ask[0]) {
+						prefix = "✔\t\t\t"
+					}
+
+					_, _ = asksTextView.Write([]byte(fmt.Sprintf("%s%s \t\t\t %s\n", prefix, utils.FormatWithCommas(ask[0]), utils.FormatWithCommas(ask[1]))))
+				}
+
+				_, _ = lastUpdatedTextView.Write([]byte(fmt.Sprintf("Last updated: %dms ago\n", time.Since(lastUpdatedAt).Milliseconds())))
+				lastUpdatedAt = time.Now()
+				app.Draw()
+			}
+		}()
+
+		// create a go routine that retrieves the order book in a loop and sends it to the order book channel
+		go func() {
+			for {
+				orderBook, err := client.GetOrderBook(symbol)
+				if err != nil {
+					bidsLogger.Printf("error fetching order book: %v\n", err)
+					asksLogger.Printf("error fetching order book: %v\n", err)
+					continue
+				}
+				orderBookChannel <- orderBook
+
+				time.Sleep(time.Duration(interval) * time.Second)
+			}
+		}()
+
+		// create a go routine that retrieves the user's orders in a loop and sends it to the user orders channel
+		go func() {
+			for {
+				userOrders, err := client.GetOpenOrders(bpclient.GetOrdersParams{State: "active", Symbol: symbol})
+				if err != nil {
+					bidsLogger.Printf("error fetching user orders: %v\n", err)
+					asksLogger.Printf("error fetching user orders: %v\n", err)
+					continue
+				}
+				userOrdersChannel <- userOrders
 
 				time.Sleep(time.Duration(interval) * time.Second)
 			}
