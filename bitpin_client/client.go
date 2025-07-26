@@ -283,6 +283,7 @@ func (c *Client) CreateOrder(params CreateOrderParams) (*OrderStatus, error) {
 
 func (c *Client) GetOpenOrders(params GetOrdersParams) ([]*OrderStatus, error) {
 	var orders []*OrderStatus
+	params.State = "active"
 	err := c.ApiRequest("GET", "/odr/orders/?"+params.AsURLParams(), Version, true, nil, &orders)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching open orders: %v", err)
