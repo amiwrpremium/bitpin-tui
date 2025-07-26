@@ -17,3 +17,6 @@ diff.txt
 *.log
 *.sql
 *.sqlite
+# Added by goreleaser init:
+dist/
+bitpin-tui
