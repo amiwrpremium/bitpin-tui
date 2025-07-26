@@ -4,10 +4,12 @@ import (
 	bpclient "bitpin-tui/bitpin_client"
 	"bitpin-tui/db"
 	"bitpin-tui/utils"
+	"context"
 	"fmt"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -29,6 +31,7 @@ func createOrderStatusTable(app *tview.Application, orders []*bpclient.OrderStat
 	table.SetCell(0, 11, tview.NewTableCell("Dealed Base Amount").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
 	table.SetCell(0, 12, tview.NewTableCell("Dealed Quote Amount").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
 	table.SetCell(0, 13, tview.NewTableCell("Commission").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
+	table.SetCell(0, 13, tview.NewTableCell("Req To Cancel").SetTextColor(tcell.ColorYellow).SetAlign(tview.AlignCenter))
 
 	for i, order := range orders {
 		color := tcell.ColorWhite
@@ -54,10 +57,11 @@ func createOrderStatusTable(app *tview.Application, orders []*bpclient.OrderStat
 		table.SetCell(i+1, 7, tview.NewTableCell(order.Identifier).SetAlign(tview.AlignCenter))
 		table.SetCell(i+1, 8, tview.NewTableCell(order.State).SetAlign(tview.AlignCenter))
 		table.SetCell(i+1, 9, tview.NewTableCell(order.CreatedAt.String()).SetAlign(tview.AlignCenter))
-		table.SetCell(i+1, 10, tview.NewTableCell(utils.FormatWithCommas(strconv.FormatInt(time.Since(order.CreatedAt).Milliseconds(), 10))+"ms ago").SetAlign(tview.AlignCenter))
+		table.SetCell(i+1, 10, tview.NewTableCell(utils.FormatWithCommas(strconv.FormatInt(int64(time.Since(order.CreatedAt).Seconds()), 10))+"ms ago").SetAlign(tview.AlignCenter))
 		table.SetCell(i+1, 11, tview.NewTableCell(order.DealedBaseAmount).SetAlign(tview.AlignCenter))
 		table.SetCell(i+1, 12, tview.NewTableCell(order.DealedQuoteAmount).SetAlign(tview.AlignCenter))
 		table.SetCell(i+1, 13, tview.NewTableCell(order.Commission).SetAlign(tview.AlignCenter))
+		table.SetCell(i+1, 13, tview.NewTableCell(strconv.FormatBool(order.ReqToCancel)).SetAlign(tview.AlignCenter))
 	}
 
 	table.Select(0, 0).SetFixed(1, 1)
@@ -236,7 +240,10 @@ func doPussyOut(app *tview.Application) {
 	grid.AddItem(cancelingChannelText, 0, 1, 1, 1, 0, 0, false)
 	grid.AddItem(cancelResultChannelText, 0, 2, 1, 1, 0, 0, false)
 
-	// Number of workers
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Get the number of workers from the settings
 	workerCount, err := strconv.Atoi(db.GetSetting("pussy_out_workers"))
 	if err != nil {
 		errorModal(app, fmt.Sprintf("Failed to get pussy out workers: %v", err), mainMenu)
@@ -251,12 +258,19 @@ func doPussyOut(app *tview.Application) {
 	}
 	cancelChannel := make(chan int, bufferSize)
 
-	// Create multiple goroutines (workers) that listen to the cancel channel and cancel orders
+	var wg sync.WaitGroup
+
+	// Cancel order workers
 	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
 		go func(workerID int) {
+			defer wg.Done()
 			for {
 				select {
-				case orderId := <-cancelChannel:
+				case orderId, ok := <-cancelChannel:
+					if !ok {
+						return
+					}
 					message := fmt.Sprintf("Worker %d: Canceling order: %d", workerID, orderId)
 					prependLogMessage(cancelingChannelText, message)
 
@@ -268,37 +282,66 @@ func doPussyOut(app *tview.Application) {
 						successMessage := fmt.Sprintf("Worker %d: Successfully canceled order: %d", workerID, orderId)
 						prependLogMessage(cancelResultChannelText, successMessage)
 					}
+				case <-ctx.Done():
+					return
 				}
 			}
 		}(i)
 	}
 
-	// Create multiple goroutines (workers) to retrieve open orders and send them to the cancel channel
+	// Order fetching workers - running at max speed
 	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
 		go func(workerID int) {
+			defer wg.Done()
 			for {
-				orders, err := client.GetOpenOrders(bpclient.GetOrdersParams{State: "active"})
-				if err != nil {
-					errorMessage := fmt.Sprintf("Worker %d: Error fetching open orders: %v", workerID, err)
-					prependLogMessage(openOrdersText, errorMessage)
-					time.Sleep(1 * time.Second) // Avoid tight loop on error
-					continue
-				}
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					prependLogMessage(openOrdersText, fmt.Sprintf("Worker %d: Fetching open orders", workerID))
+					orders, err := client.GetOpenOrders(bpclient.GetOrdersParams{State: "active"})
+					if err != nil {
+						errorMessage := fmt.Sprintf("Worker %d: Error fetching open orders: %v", workerID, err)
+						prependLogMessage(openOrdersText, errorMessage)
+						continue
+					}
 
-				message := fmt.Sprintf("Worker %d: %d open orders fetched", workerID, len(orders))
-				prependLogMessage(openOrdersText, message)
+					message := fmt.Sprintf("Worker %d: %d open orders fetched", workerID, len(orders))
+					prependLogMessage(openOrdersText, message)
 
-				for _, order := range orders {
-					cancelChannel <- order.Id
+					for _, order := range orders {
+						select {
+						case cancelChannel <- order.Id:
+							// Sent to channel
+						case <-ctx.Done():
+							return
+						default:
+							// Channel full, skip and continue
+							prependLogMessage(openOrdersText, fmt.Sprintf("Worker %d: Skipped order %d (channel full)", workerID, order.Id))
+						}
+					}
 				}
 			}
 		}(i)
 	}
+
+	// Handle application cleanup
+	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEsc {
+			cancel()
+			close(cancelChannel)
+			app.Stop()
+			return nil
+		}
+		return event
+	})
 
 	if err := app.SetRoot(grid, true).SetFocus(grid).Run(); err != nil {
+		cancel()
+		close(cancelChannel)
 		panic(err)
 	}
 
-	// Keep the main function running
-	select {}
+	wg.Wait()
 }
